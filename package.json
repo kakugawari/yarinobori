@@ -1,7 +1,7 @@
 {
-  "name": "app-template",
+  "name": "yarinobori",
   "version": "1.0.0",
-  "description": "ビルドなしで動くアプリの雛形 (進め方のルールつき)",
+  "description": "タップでヤリを打ちこみ、ピンポン玉をビルのてっぺんへ",
   "private": true,
   "scripts": {
     "start": "node serve.js",

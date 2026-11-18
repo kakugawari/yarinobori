@@ -2,41 +2,68 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>アプリの雛形</title>
-<meta name="description" content="ビルドなしで動くアプリの雛形">
-<meta name="theme-color" content="#151a2e">
-<!-- ホーム画面に追加して開いたとき、時計や電池の帯の下まで画面を描く。
-     無いと iOS は帯の下からページを始め、帯を theme-color の板で塗る (画面のいちばん上が別の色になる)。
-     上の安全域は styles.css の env(safe-area-inset-top) で空けてある。
-     iOS は追加したときの設定を覚えているので、前に追加したアイコンは作り直さないと変わらない -->
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#5fb8ea">
+<title>やりのぼり</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+<canvas id="c"></canvas>
 
-<div id="app">
-  <header id="topbar">
-    <h1 class="title">アプリの雛形</h1>
-    <div class="topbar-actions">
-      <button type="button" id="btnAction" class="btn btn-primary">ためす</button>
-    </div>
-  </header>
-
-  <main id="stage">
-    <p class="lead">ここにアプリを作る。</p>
-    <p class="result" id="result">—</p>
-    <p class="note">
-      ロジックは <code>src/core.js</code> に、画面は <code>src/app.js</code> に書く。<br>
-      <code>npm test</code> でロジックを、<code>npm run test:ui</code> で画面を確かめる。
-    </p>
-  </main>
+<div class="hud" id="hud">
+  <div><span class="num" id="num">1</span><span class="unit">かい</span></div>
+  <div class="best" id="bestHud">さいこう 0かい</div>
+  <div class="coin"><span class="coin-ic"></span><span id="coinHud">0</span></div>
 </div>
 
-<script src="./core.js"></script>
+<div class="overlay" id="titleOv">
+  <div class="card">
+    <h1 class="title">やりのぼり</h1>
+    <p class="sub">ピンポン玉をビルのてっぺんへ</p>
+    <ul class="rules">
+      <li>画面をタップすると、右のヤリが横にとんでビルにささる</li>
+      <li>おちてきた玉がヤリにのると、はねて上へ</li>
+      <li>とんでいるヤリが玉に当たったらまけ</li>
+      <li>のぼったかいだけコインがもらえて、ガチャで玉が当たる</li>
+    </ul>
+    <button id="startBtn">はじめる</button>
+    <button class="sub2" id="gachaBtn1">ガチャ</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overOv">
+  <div class="card" style="text-align:center">
+    <div id="newrec" class="newrec" hidden>しんきろく</div>
+    <div class="result"><span id="resNum">1</span><small>かい</small></div>
+    <p class="resbest" id="resBest">さいこう 0かい</p>
+    <p class="earn"><span class="coin-ic"></span>+<span id="earnNum">0</span>コイン</p>
+    <button id="againBtn">もういちど</button>
+    <button class="sub2" id="gachaBtn2">ガチャ</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="gachaOv">
+  <div class="card gcard">
+    <div class="ghead">
+      <h2 class="gtitle">玉ガチャ</h2>
+      <div class="coins"><span class="coin-ic"></span><span id="gCoins">0</span></div>
+    </div>
+    <canvas class="stage" id="gStage"></canvas>
+    <p class="gmsg" id="gMsg">1かい 10コイン</p>
+    <button id="pullBtn">ガチャをひく</button>
+    <p class="glabel" id="gCount">あつめた玉</p>
+    <div class="grid" id="grid"></div>
+    <button class="sub2" id="backBtn">もどる</button>
+  </div>
+</div>
+
 <script src="./app.js"></script>
 </body>
 </html>
