@@ -130,21 +130,68 @@ async function run() {
     ok(/^#[0-9a-f]{6}$/i.test(bar.theme), `帯の色 (theme-color) が決めてある (${bar.theme})`);
 
     // ------------------------------------------------ ここにアプリごとの確認を足す
-    section('アプリの操作');
-    if (!(await phone.locator('#btnAction').count())) {
-      skip('雛形のボタンが無い (アーティファクトから取り込んだ)。アプリに合わせた確認をここに書く');
-    } else {
-    await phone.locator('#btnAction').tap();
-    await phone.waitForTimeout(120);
-    const after = await phone.evaluate(() => ({
-      count: window.__app.state().count,
-      shown: document.getElementById('result').textContent
-    }));
-    ok(after.count === 1 && after.shown !== '—', `ボタンを押すと結果が出る (${after.shown})`);
-
-    // 押した直後に表示が飛ばないか (CSS アニメーションの上書き事故よけ)
-    const jump = await measureJump(phone, '#result', 'document.getElementById("btnAction").click()');
-    ok(jump < 12, `押した直後に表示が飛ばない (最大ずれ ${jump}px)`);
+    section('アプリの操作 (やりのぼり)');
+    {
+      const ctx = await browser.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true, isMobile: true });
+      const pg = await ctx.newPage();
+      pg.on('pageerror', (e) => errors.push('やりのぼり: ' + e.message));
+      await pg.goto(URL, { waitUntil: 'load' });
+      // 絵 (canvas) は根っこいっぱい。ホーム画面から開いたとき下に帯が出ない作り (CLAUDE.md の落とし穴)
+      const size = await pg.evaluate(() => ({ c: document.getElementById('c').getBoundingClientRect().height, s: window.__app.size }));
+      ok(Math.round(size.c) === 932 && size.s.H === 932, `絵が画面の高さいっぱい (${Math.round(size.c)}pt / 計算に使う高さ ${size.s.H})`);
+      await pg.locator('#startBtn').tap();
+      ok(await pg.evaluate(() => window.__app.state === 'play'), '「はじめる」で遊びはじめる');
+      // タップするとヤリが飛び、ビルにささる (玉が点線から十分上にいるときに打つ。近いと飛ぶヤリが玉に当たって終わる)
+      await pg.waitForFunction(() => { const a = window.__app; return a.ball.y - a.R > a.camY + a.size.H * (1 - a.LAUNCH_FRAC) + 90; });
+      await pg.touchscreen.tap(215, 300);
+      const fl = await pg.evaluate(() => window.__app.flying.length);
+      await pg.waitForTimeout(300);
+      const st = await pg.evaluate(() => ({ sp: window.__app.spears.length, fl: window.__app.flying.length, st: window.__app.state }));
+      ok(fl === 1 && st.sp === 1 && st.fl === 0 && st.st === 'play', `タップするとヤリが飛び、ビルにささる (飛んでいる ${fl} → ささった ${st.sp})`);
+      // うまい打ち方 (ゲームの「いま!」と同じ見きわめ) をページの中で毎コマ判断して打つと、どんどん登れる
+      // (外から見張って打つと遅れて打ち損ねた。ヤリが届くまで 0.12 秒かかるので、点線のずっと上で打つ)
+      await pg.reload();
+      await pg.locator('#startBtn').tap();
+      await pg.evaluate(() => {
+        const cv = document.getElementById('c'); let last = 0;
+        (function loop(t) {
+          const a = window.__app; if (a.state !== 'play' || window.__stopBot) return;
+          const line = a.camY + a.size.H * (1 - a.LAUNCH_FRAC), bb = a.ball.y - a.R, bf = bb + a.ball.vy * a.FLY - 0.5 * a.G * a.FLY * a.FLY;
+          if (a.ball.vy < 0 && bf > line + 6 && bb < line + 220 && t - last > 250) { last = t; cv.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); }
+          requestAnimationFrame(loop);
+        })(0);
+      });
+      await pg.waitForTimeout(8000);
+      const climb = await pg.evaluate(() => ({ f: window.__app.floors(), b: window.__app.bounces, st: window.__app.state }));
+      ok(climb.st === 'play' && climb.f >= 12 && climb.b >= 4, `うまく打つと 8 秒で ${climb.f} かいまで登れる (ヤリではねた ${climb.b} 回)`);
+      // とんでいるヤリが玉に当たると おしまい。のぼったかいだけコインが入り、さいこうを覚える
+      await pg.evaluate(() => { window.__stopBot = true; });
+      const before = await pg.evaluate(() => ({ coins: window.__app.save.coins, f: window.__app.floors() }));
+      await pg.evaluate(() => {   // 玉がちょうど点線の高さに来たときに打って、わざと当てる
+        const cv = document.getElementById('c');
+        return new Promise((r) => (function loop() {
+          const a = window.__app; if (a.state !== 'play') return r();
+          const line = a.camY + a.size.H * (1 - a.LAUNCH_FRAC);
+          if (Math.abs(a.ball.y - line) < a.R) cv.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+          requestAnimationFrame(loop);
+        })());
+      });
+      await pg.waitForTimeout(700);
+      const over = await pg.evaluate(() => ({ st: window.__app.state, shown: !document.getElementById('overOv').classList.contains('hidden'),
+        coins: window.__app.save.coins, res: +document.getElementById('resNum').textContent, best: window.__app.best.floors }));
+      ok(over.st === 'over' && over.shown, 'とんでいるヤリが玉に当たると おしまいの札が出る');
+      ok(over.coins === before.coins + over.res && over.best >= over.res, `のぼったかいだけコインが入り (+${over.res})、さいこうを覚える (${over.best} かい)`);
+      await pg.reload();
+      ok(await pg.evaluate((b) => window.__app.best.floors === b, over.best), '開き直しても さいこうとコインを覚えている');
+      // ガチャ: 10 コインで 1 かい。新しい玉は手もちに入り、つかう玉になる
+      await pg.evaluate(() => { window.__app.save.coins = 30; });
+      await pg.locator('#gachaBtn1').tap();
+      const g0 = await pg.evaluate(() => ({ c: window.__app.save.coins, n: window.__app.save.owned.length }));
+      await pg.locator('#pullBtn').tap();
+      await pg.waitForTimeout(1500);
+      const g1 = await pg.evaluate(() => ({ c: window.__app.save.coins, n: window.__app.save.owned.length, msg: document.getElementById('gMsg').textContent }));
+      ok((g1.n === g0.n + 1 && g1.c === g0.c - 10) || (g1.n === g0.n && g1.c === g0.c - 7), `ガチャを ひくと コインが減り、玉が手もちに入る (${g1.msg})`);
+      await ctx.close();
     }
 
     // ------------------------------------------------ 明るい画面・暗い画面

@@ -2,8 +2,22 @@
 
 <!-- ここから: 新しいアプリを始めたら、この節を書き換える -->
 
-**まだ何も作っていない雛形の状態。** 最初の作業で、ここに
-「何のアプリか」「どう動かすか」「決めごと」を書き足すこと。
+**やりのぼり** ― タップすると右からヤリが飛んでビルにささり、はねる玉をそのヤリにのせて、ビルのてっぺんへ登っていくゲーム。
+とんでいるヤリが玉に当たったらおしまい。登ったかいだけコインが入り、ガチャで玉の見た目 (15 種類) が当たる。
+
+- もとは Claude のチャットで作ったアーティファクト「やりのぼり」(`https://claude.ai/artifact/KKguorFY9W2bgFfVKhdYF5`)。
+  `import-artifact.js` で分けて取り込んだ。画面もロジックも `app.js` (canvas に描く。`core.js` は無い)
+- 記録は `localStorage` の `yarinobori-best` (さいこう) と `yarinobori-save` (コイン・玉)。アーティファクトで遊んだ記録は引き継がれない
+- 字は Google Fonts の Dela Gothic One (ネットにつながっていないときは、ほかの太字の書体になる)
+- 取り込んだあとに直したこと (アーティファクトを直してもう一度取り込むときは、付け直す):
+  - `styles.css`: `html,body` を `height:100vh; position:relative`、canvas・`.hud`・`.stock`・`.overlay` を `fixed` → `absolute`。
+    根っこにあった安全域の余白はやめた (上は HUD と札が自分で空ける)。落とし穴の表「ホーム画面から開くと下に帯」
+  - `app.js`: 大きさは `innerHeight` ではなく canvas そのもの (`clientHeight`) から取る。0 のときは組み直さない。
+    コマの間隔 (`dt`) は上だけでなく下 (負) も止める (落とし穴の表「1 コマ目の dt が負」)。`window.__app` (テストの入口) を足した
+  - `index.html`: charset を先頭へ。theme-color を空の色 `#5fb8ea` に
+  - アイコン (`icon.svg` → `apple-touch-icon.png`) と、ネット優先の `sw.js` を作った
+- テストの「うまい打ち方」は、ゲームの「いま!」と同じ見きわめ (ヤリが届く 0.12 秒後に玉が点線より上・点線から 220 以内) を
+  **ページの中で毎コマ**判断して打つ。外から見張って打つと遅れて、1 本もささらなかった
 
 <!-- ここまで -->
 
@@ -83,15 +97,14 @@ npm run test:ui    # ブラウザで実際に動かすテスト (要 npm i -D pl
 
 ```
 index.html / styles.css   画面
-core.js                   ロジック。DOM を触らない。ブラウザと node の両方で動く
-app.js                    操作・描画
-core.test.js              ロジックのテスト (node --test)
+app.js                    ゲーム (canvas の描画・動き・ガチャ・効果音)
 browser-test.js           ブラウザで動かすテスト
 serve.js                  開発用サーバー
 import-artifact.js        アーティファクト (1 枚の HTML) を上の形に分ける
 import-artifact.test.js   その道具のテスト
 make-icon.js              icon.svg から PNG のアイコンを作る (名前:大きさ で何枚でも)
-apple-touch-icon.png      その PNG (180x180)
+apple-touch-icon.png      その PNG (180x180)。絵はビルにささったヤリとはねる玉
+sw.js                     オフラインでも開けるようにする (ネット優先)
 .github/workflows/pages.yml  main に入ったらテストして GitHub Pages に公開する
 ```
 
